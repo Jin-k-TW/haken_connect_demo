@@ -1,13 +1,14 @@
-# streamlit_app.py — Haken Connect / Light Blue Theme
+# streamlit_app.py — Haken Connect / Light Blue Theme + Mascot (inline SVG)
 import os
+import base64
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
 
-# -----------------------------------------------------------------------------
-# App meta / Brand
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Brand
+# =============================================================================
 BRAND_NAME = "Haken Connect"
 BRAND_COLOR = "#5EC2FE"        # Light Blue
 BRAND_COLOR_DARK = "#24a9f0"
@@ -16,9 +17,9 @@ MUTED = "#6b7280"
 
 st.set_page_config(page_title=f"{BRAND_NAME}（社内β）", page_icon="🔗", layout="wide")
 
-# -----------------------------------------------------------------------------
-# CSS (theme + components)
-# -----------------------------------------------------------------------------
+# =============================================================================
+# CSS (Theme + components + mascot)
+# =============================================================================
 st.markdown(
     f"""
 <style>
@@ -27,16 +28,16 @@ st.markdown(
   --brand-dark: {BRAND_COLOR_DARK};
   --muted: {MUTED};
 }}
-/* App background and container tweaks */
+/* App padding */
 .main .block-container {{
   padding-top: 0.8rem;
   padding-bottom: 3rem;
 }}
-
+/* Subtle brand background */
 body {{
   background: linear-gradient(180deg, rgba(94,194,254,0.10), rgba(94,194,254,0.02));
 }}
-
+/* Brand hero */
 .brand-hero {{
   position: relative;
   padding: 20px 24px 16px 24px;
@@ -44,14 +45,10 @@ body {{
   background: radial-gradient(1200px 300px at 20% -10%, rgba(94,194,254,0.35), transparent),
               linear-gradient(180deg, #fff, #fff);
   border: 1px solid #e9eef5;
-  box-shadow: 0 6px 24px rgba(21, 126, 179, 0.08);
+  box-shadow: 0 6px 24px rgba(21,126,179,0.08);
   margin-bottom: 14px;
 }}
-
-.brand-row {{
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-}}
-
+.brand-row {{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }}
 .brand-badge {{
   display:flex; align-items:center; gap:10px;
   padding:10px 14px; border-radius: 999px;
@@ -62,17 +59,11 @@ body {{
   width:10px; height:10px; border-radius:999px; background:{BRAND_COLOR};
   box-shadow: 0 0 0 3px rgba(94,194,254,0.25);
 }}
-.brand-sub {{
-  color:#334155; font-size:13px; margin-left:2px;
-}}
+.brand-sub {{ color:#334155; font-size:13px; margin-left:2px; }}
+.brand-wave {{ position:absolute; inset:auto 0 0 0; height:52px; overflow:hidden; }}
+.brand-wave svg {{ display:block; width:100%; height:100%; }}
 
-.brand-wave {{
-  position:absolute; inset:auto 0 0 0; height:52px; overflow:hidden;
-}}
-.brand-wave svg {{
-  display:block; width:100%; height:100%;
-}}
-
+/* Cards */
 .card {{padding:14px 16px; border:1px solid #e9ecef; border-radius:14px; margin-bottom:12px; background:#fff;}}
 .rank {{font-size:44px; font-weight:800; letter-spacing:1px; line-height:1; margin:2px 0 8px 0; color:#0f172a;}}
 .fee {{font-size:12px; color:var(--muted); margin-top:2px;}}
@@ -83,55 +74,74 @@ body {{
 .right-wrap {{display:flex; flex-direction:column; height:100%;}}
 .job {{flex:1 1 auto; white-space:pre-wrap;}}
 .right-actions {{flex:0 0 auto; text-align:right; margin-top:12px;}}
-
 .badge {{
   display:inline-block; padding:2px 10px; font-size:12px; border-radius:999px;
   background: {ACCENT_BG}; color:#0f172a; border:1px solid rgba(94,194,254,0.28);
 }}
 
+/* Tabs & Buttons */
 .stTabs [role="tablist"] button[role="tab"] {{
   border-radius: 10px 10px 0 0 !important;
   background: #ffffffaa;
-  border: 1px solid #e9eef5;
-  margin-right: 6px;
+  border: 1px solid #e9eef5; margin-right: 6px;
 }}
 .stTabs [role="tablist"] button[aria-selected="true"] {{
   border-bottom-color: #ffffff;
-  color:#0f172a;
-  box-shadow: 0 -2px 0 var(--brand) inset;
+  color:#0f172a; box-shadow: 0 -2px 0 var(--brand) inset;
 }}
-
 .stButton>button {{
   border-radius: 10px; border:1px solid var(--brand);
-  background: var(--brand); color:#fff; font-weight:700;
-  padding: 8px 14px;
+  background: var(--brand); color:#fff; font-weight:700; padding: 8px 14px;
   box-shadow: 0 6px 16px rgba(94,194,254,0.35);
 }}
-.stButton>button:hover {{
-  background: var(--brand-dark); border-color: var(--brand-dark);
-}}
+.stButton>button:hover {{ background: var(--brand-dark); border-color: var(--brand-dark); }}
 
+/* Sidebar */
 .sidebar .sidebar-content, section[data-testid="stSidebar"]>div {{
   background: linear-gradient(180deg, #ffffff, #f9fcff);
   border-right: 1px solid #e9eef5;
 }}
+
+/* Mascot (fixed bottom-right) */
+.hc-mascot {{
+  position: fixed;
+  right: 18px; bottom: 18px;
+  width: clamp(90px, 14vw, 140px);
+  z-index: 9999;
+  user-select: none; pointer-events: none;
+  animation: hc-float 4s ease-in-out infinite;
+  filter: drop-shadow(0 6px 18px rgba(30, 144, 255, 0.35));
+}}
+@keyframes hc-float {{
+  0% {{ transform: translateY(0) }}
+  50%{{ transform: translateY(-6px) }}
+  100%{{ transform: translateY(0) }}
+}}
+.hc-mascot-tip {{
+  position: fixed; right: 20px;
+  bottom: calc(18px + clamp(90px, 14vw, 140px) + 8px);
+  background: #ffffff; border: 1px solid #e6f3ff;
+  padding: 6px 10px; border-radius: 10px; color:#0f172a; font-size: 12px;
+  box-shadow: 0 8px 18px rgba(94,194,254,.18);
+}}
+.hc-mascot-tip b {{ color: #1377c8; }}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # Data paths
-# -----------------------------------------------------------------------------
+# =============================================================================
 DATA_DIR = "data"
 OPP_CSV = os.path.join(DATA_DIR, "opportunities.csv")
 COM_CSV = os.path.join(DATA_DIR, "companies.csv")
 AGY_CSV = os.path.join(DATA_DIR, "agencies.csv")
 CON_CSV = os.path.join(DATA_DIR, "connections.csv")
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # Utils
-# -----------------------------------------------------------------------------
+# =============================================================================
 @st.cache_data
 def load_df(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
@@ -146,13 +156,80 @@ def ensure_connections_file():
         ).to_csv(CON_CSV, index=False)
 
 def mosaic_html(text: str) -> str:
-    """HTML/CSSぼかし（テキスト抽出避けのため user-select:none）"""
+    """HTML/CSSぼかし（ユーザー選択不可で視認防止）"""
     safe = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return f'<span class="company blurred">{safe}</span>'
 
-# -----------------------------------------------------------------------------
+# ===== Mascot (inline SVG) ====================================================
+def get_mascot_svg(fill="#5EC2FE") -> str:
+    """
+    青い二足歩行の犬 + 虫眼鏡（背景透過のSVG）。
+    チーバくん系の丸み/親しみやすさ、探索のニュアンス。
+    """
+    return f"""
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+  <!-- Body -->
+  <g filter="url(#shadow)">
+    <path d="M170 180c0-46 36-84 82-84s82 38 82 84v18c28 10 44 34 44 61 0 38-35 68-90 68h-72c-55 0-90-30-90-68 0-29 18-54 48-62v-17z"
+          fill="{fill}"/>
+    <!-- Belly -->
+    <ellipse cx="252" cy="274" rx="66" ry="56" fill="white" fill-opacity="0.85"/>
+    <!-- Muzzle -->
+    <ellipse cx="252" cy="206" rx="34" ry="24" fill="white"/>
+    <!-- Nose -->
+    <circle cx="268" cy="206" r="5" fill="#0f172a"/>
+    <!-- Eyes -->
+    <circle cx="230" cy="186" r="6" fill="#0f172a"/>
+    <circle cx="286" cy="186" r="6" fill="#0f172a"/>
+    <!-- Smile -->
+    <path d="M238 212c8 8 20 8 28 0" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+    <!-- Ears -->
+    <path d="M198 138c-12-10-30-12-44-4 6 18 23 28 40 26l4-22z" fill="{fill}"/>
+    <path d="M306 138c12-10 30-12 44-4-6 18-23 28-40 26l-4-22z" fill="{fill}"/>
+    <!-- Legs -->
+    <path d="M206 354c-2 22-8 44-18 64-6 12 12 20 21 10 10-13 19-28 25-44l-28-30z" fill="{fill}"/>
+    <path d="M298 354c2 22 8 44 18 64 6 12-12 20-21 10-10-13-19-28-25-44l28-30z" fill="{fill}"/>
+    <!-- Arms -->
+    <path d="M166 258c-18 10-32 22-42 36-6 8 4 19 13 14 13-8 29-14 46-18l-17-32z" fill="{fill}"/>
+    <path d="M338 258c18 10 32 22 42 36 6 8-4 19-13 14-13-8-29-14-46-18l17-32z" fill="{fill}"/>
+  </g>
+
+  <!-- Magnifying glass (right hand) -->
+  <g transform="translate(332,236) rotate(20)">
+    <circle cx="44" cy="44" r="36" fill="#ffffff" stroke="#0f172a" stroke-width="6"/>
+    <circle cx="44" cy="44" r="18" fill="{fill}" fill-opacity="0.35"/>
+    <rect x="38" y="76" width="12" height="34" rx="6" fill="#0f172a"/>
+  </g>
+
+  <!-- Friendly cheek -->
+  <circle cx="214" cy="196" r="7" fill="#FDB4C8" fill-opacity="0.85"/>
+
+  <!-- Soft shadow -->
+  <defs>
+    <filter id="shadow" x="0" y="0" width="512" height="512" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+</svg>
+""".strip()
+
+def inject_mascot(show_tip: bool = True):
+    svg = get_mascot_svg(BRAND_COLOR)
+    b64 = base64.b64encode(svg.encode("utf-8")).decode()
+    st.markdown(
+        f'<img class="hc-mascot" alt="mascot" src="data:image/svg+xml;base64,{b64}"/>',
+        unsafe_allow_html=True,
+    )
+    if show_tip:
+        st.markdown(
+            f'<div class="hc-mascot-tip">🔎 <b>{BRAND_NAME}</b> で発見！</div>',
+            unsafe_allow_html=True,
+        )
+
+# =============================================================================
 # Session init
-# -----------------------------------------------------------------------------
+# =============================================================================
 if "pricing" not in st.session_state:
     st.session_state["pricing"] = {
         "A": {"fee": 100000, "incentive": 30000},
@@ -166,9 +243,9 @@ if "selected_agency" not in st.session_state:
 
 ensure_connections_file()
 
-# -----------------------------------------------------------------------------
+# =============================================================================
 # Sidebar
-# -----------------------------------------------------------------------------
+# =============================================================================
 st.sidebar.title(BRAND_NAME)
 role = st.sidebar.selectbox("ロール", ["Admin", "Agency"], index=0, key="role")
 
@@ -189,9 +266,9 @@ st.sidebar.markdown("**料金設定（参考）**")
 for k, v in st.session_state["pricing"].items():
     st.sidebar.write(f"企業ランク{k}: ご紹介料金 ¥{v['fee']:,}")
 
-# -----------------------------------------------------------------------------
-# Brand hero (SVG generated in place)
-# -----------------------------------------------------------------------------
+# =============================================================================
+# Brand hero
+# =============================================================================
 def hero_svg():
     return f"""
 <div class="brand-hero">
@@ -214,9 +291,12 @@ def hero_svg():
 """
 st.markdown(hero_svg(), unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
+# マスコットを右下に出現
+inject_mascot(show_tip=True)
+
+# =============================================================================
 # Main
-# -----------------------------------------------------------------------------
+# =============================================================================
 st.caption("社名は接続まで非公開。接続時にご紹介料金（接続料）が発生します。")
 
 tab1, tab2, tab3 = st.tabs(["案件カタログ", "ダッシュボード", "ヘルプ"])
@@ -275,7 +355,7 @@ with tab1:
                     unsafe_allow_html=True
                 )
 
-            # Middle: Company line + meta (地域→業種→職種/人数)
+            # Middle: Company + meta（地域→業種→職種/人数）
             with mid:
                 st.markdown(
                     f'<div style="display:flex;align-items:center;gap:6px;">'
