@@ -1,10 +1,9 @@
-# streamlit_app.py
+# streamlit_app.py  — loginなしのシンプル版
 import os
 from datetime import datetime
 
 import pandas as pd
 import streamlit as st
-import streamlit_authenticator as stauth
 
 # -----------------------------------------------------------------------------
 # 基本設定
@@ -18,93 +17,14 @@ AGY_CSV = os.path.join(DATA_DIR, "agencies.csv")
 CON_CSV = os.path.join(DATA_DIR, "connections.csv")
 
 # -----------------------------------------------------------------------------
-# 認証（Secrets から読むユーティリティ）
-# -----------------------------------------------------------------------------
-def _load_credentials_from_secrets():
-    """Streamlit Cloud の Secrets から認証情報を取得"""
-    if "credentials" not in st.secrets or "usernames" not in st.secrets["credentials"]:
-        st.error(
-            "認証情報 (Secrets) が見つかりません。App → Settings → Secrets に "
-            "[cookie] と [credentials.usernames.*] を設定してください。"
-        )
-        st.stop()
-    creds = {"usernames": {}}
-    for u, v in st.secrets["credentials"]["usernames"].items():
-        item = {"name": v["name"], "password": v["password"], "role": v["role"]}
-        if "agency_id" in v:
-            item["agency_id"] = v["agency_id"]
-        creds["usernames"][u] = item
-    cookie_conf = st.secrets["cookie"]
-    return creds, cookie_conf
-
-
-def do_auth():
-    """ログインフォームを表示して認証・セッション設定までを行う"""
-    creds, cookie_conf = _load_credentials_from_secrets()
-
-    authenticator = stauth.Authenticate(
-        credentials=creds,
-        cookie_name=cookie_conf["name"],
-        key=cookie_conf["key"],
-        cookie_expiry_days=int(cookie_conf["expiry_days"]),
-    )
-
-    # ---- v0.4.1 仕様 + location安全パッチ（不可視文字/大文字混入対策）----
-    FORM_NAME = "ログイン"
-    LOC = "sidebar"
-    LOC = LOC.strip().lower()  # 'main' / 'sidebar' / 'unrendered' 以外は弾かれる
-
-    # 位置引数の順序：(form_name, location) を厳守
-    name, auth_status, username = authenticator.login(
-        FORM_NAME,
-        LOC,
-        fields={
-            "Username": "ユーザー名",
-            "Password": "パスワード",
-            "Submit":   "ログイン",
-        },
-    )
-
-    # ログイン状態のチェック
-    if auth_status is False:
-        st.error("ユーザー名またはパスワードが違います。")
-        st.stop()
-    elif auth_status is None:
-        st.info("ログインしてください。")
-        st.stop()
-
-    # 認証成功 → セッションに保存
-    user = creds["usernames"][username]
-    st.session_state["user_name"] = user["name"]
-    st.session_state["username"] = username
-    st.session_state["role"] = user["role"]
-
-    # Agency は自社IDをセッションへ（Secretsにあれば）
-    if user["role"] == "Agency":
-        st.session_state["selected_agency"] = user.get("agency_id", None)
-
-    # サイドバーにログアウト
-    authenticator.logout("ログアウト", "sidebar")
-    st.sidebar.markdown(f"**ログイン中:** {st.session_state['user_name']}（{st.session_state['role']}）")
-
-
-def require_auth(roles=None):
-    """ページ／ブロック用アクセス制御"""
-    if "role" not in st.session_state:
-        st.error("ログインしてください。")
-        st.stop()
-    if roles and st.session_state["role"] not in roles:
-        st.error("このページへのアクセス権限がありません。")
-        st.stop()
-
-# -----------------------------------------------------------------------------
-# データユーティリティ
+# ユーティリティ
 # -----------------------------------------------------------------------------
 @st.cache_data
 def load_df(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 def ensure_connections_file():
+    """connections.csv が無ければ空で作成"""
     if not os.path.exists(CON_CSV):
         pd.DataFrame(
             columns=[
@@ -120,6 +40,7 @@ def ensure_connections_file():
         ).to_csv(CON_CSV, index=False)
 
 def mask_company(name: str) -> str:
+    """社名の簡易マスキング（先頭/末尾だけ残す）"""
     if not name or len(name) <= 2:
         return "非公開"
     return name[0] + "＊" * (len(name) - 2) + name[-1]
@@ -130,27 +51,26 @@ def mask_company(name: str) -> str:
 if "pricing" not in st.session_state:
     st.session_state["pricing"] = {
         "A": {"fee": 100000, "incentive": 30000},
-        "B": {"fee": 50000, "incentive": 15000},
-        "C": {"fee": 20000, "incentive": 5000},
+        "B": {"fee":  50000, "incentive": 15000},
+        "C": {"fee":  20000, "incentive":  5000},
     }
+if "role" not in st.session_state:
+    st.session_state["role"] = "Admin"
 if "selected_agency" not in st.session_state:
     st.session_state["selected_agency"] = None
 
 ensure_connections_file()
 
 # -----------------------------------------------------------------------------
-# 認証（ここでログイン必須）
-# -----------------------------------------------------------------------------
-do_auth()
-role = st.session_state.get("role", "Agency")  # 以降の表示分岐で使用
-
-# -----------------------------------------------------------------------------
-# サイドバー（料金表示／Agency の会社選択フォールバック）
+# サイドバー
 # -----------------------------------------------------------------------------
 st.sidebar.title("Dispatch Gate (β)")
 
-# Agency で Secrets に agency_id が無い場合のみ、選択UIを表示
-if role == "Agency" and not st.session_state.get("selected_agency"):
+# ロール切替（Admin / Agency）
+role = st.sidebar.selectbox("ロール", ["Admin", "Agency"], index=0, key="role")
+
+# Agency のときは自社選択
+if role == "Agency":
     try:
         agy_df = load_df(AGY_CSV)
         agy_name = st.sidebar.selectbox("派遣会社を選択", agy_df["agency_name"].tolist())
@@ -159,6 +79,8 @@ if role == "Agency" and not st.session_state.get("selected_agency"):
         ].iloc[0]
     except Exception:
         st.sidebar.warning("派遣会社マスタ（data/agencies.csv）を確認してください。")
+else:
+    st.session_state["selected_agency"] = None
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**料金設定（参考）**")
@@ -175,10 +97,10 @@ tab1, tab2, tab3 = st.tabs(["案件カタログ", "ダッシュボード", "ヘ�
 
 # ---- 案件カタログ -----------------------------------------------------------
 with tab1:
-    require_auth(roles=["Admin", "Agency"])
-
     opp_df = load_df(OPP_CSV)
     com_df = load_df(COM_CSV)
+
+    # 表示用に join（Agency は社名をマスク）
     merged = opp_df.merge(com_df, on="company_id", how="left")
 
     col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
@@ -228,6 +150,7 @@ with tab1:
                 f"要件: {row['requirements'][:120]}{'...' if len(row['requirements']) > 120 else ''}"
             )
 
+            # Agency のみ：接続申請ボタン
             if role == "Agency":
                 if st.button("この案件に接続申請する ▶︎", key=f"connect_{row['opportunity_id']}"):
                     con_df = pd.read_csv(CON_CSV)
@@ -253,12 +176,11 @@ with tab1:
 
 # ---- ダッシュボード ---------------------------------------------------------
 with tab2:
-    require_auth(roles=["Admin", "Agency"])
-
+    st.subheader("ダッシュボード（サマリー）")
     opp_df = load_df(OPP_CSV)
     con_df = pd.read_csv(CON_CSV)
-    need_counts = opp_df["need_level"].value_counts().reindex(["A", "B", "C"]).fillna(0).astype(int)
 
+    need_counts = opp_df["need_level"].value_counts().reindex(["A", "B", "C"]).fillna(0).astype(int)
     colA, colB, colC, colD = st.columns(4)
     colA.metric("案件数（A）", int(need_counts.get("A", 0)))
     colB.metric("案件数（B）", int(need_counts.get("B", 0)))
@@ -269,7 +191,6 @@ with tab2:
 
 # ---- ヘルプ -----------------------------------------------------------------
 with tab3:
-    require_auth(roles=["Admin", "Agency"])
     st.markdown(
         """
         **Q. 社名は見えますか？**  
@@ -279,6 +200,6 @@ with tab3:
         A. **接続時**（企業と派遣会社を当社が繋いだ時点）に発生します。
 
         **Q. 企業への奨励金は？**  
-        A. 契約ステータスに応じて運用。初期値は設定ページの金額を参照ください。
+        A. 契約ステータスに応じて運用。初期値はサイドバーの金額を参照ください。
         """
     )
