@@ -17,23 +17,20 @@ COM_CSV = os.path.join(DATA_DIR, "companies.csv")
 AGY_CSV = os.path.join(DATA_DIR, "agencies.csv")
 CON_CSV = os.path.join(DATA_DIR, "connections.csv")
 
-
 # -----------------------------------------------------------------------------
-# 認証まわり
+# 認証（Secrets から読むユーティリティ）
 # -----------------------------------------------------------------------------
 def _load_credentials_from_secrets():
-    """Streamlit Cloud の Secrets から認証情報を取得（ローカル未設定時は例外表示）"""
+    """Streamlit Cloud の Secrets から認証情報を取得"""
     if "credentials" not in st.secrets or "usernames" not in st.secrets["credentials"]:
         st.error(
-            "認証情報 (Secrets) が見つかりません。Cloud の App → Settings → Secrets に "
-            "credentials と cookie セクションを設定してください。"
+            "認証情報 (Secrets) が見つかりません。App → Settings → Secrets に "
+            "[cookie] と [credentials.usernames.*] を設定してください。"
         )
         st.stop()
     creds = {"usernames": {}}
     for u, v in st.secrets["credentials"]["usernames"].items():
-        # 必須: name, password(ハッシュ), role
         item = {"name": v["name"], "password": v["password"], "role": v["role"]}
-        # 任意: agency_id（Agencyを自社固定にする場合）
         if "agency_id" in v:
             item["agency_id"] = v["agency_id"]
         creds["usernames"][u] = item
@@ -52,17 +49,18 @@ def do_auth():
         cookie_expiry_days=int(cookie_conf["expiry_days"]),
     )
 
-  # メインカラムにログインフォーム
-name, auth_status, username = authenticator.login(
-    location="sidebar",
-    fields={
-        "Form name": "ログイン",
-        "Username": "ユーザー名",
-        "Password": "パスワード",
-        "Submit": "ログイン"
-    },
-)
+    # サイドバーにログインフォーム（v0.4.1 仕様）
+    name, auth_status, username = authenticator.login(
+        location="sidebar",
+        fields={
+            "Form name": "ログイン",
+            "Username": "ユーザー名",
+            "Password": "パスワード",
+            "Submit": "ログイン",
+        },
+    )
 
+    # ログイン状態のチェック
     if auth_status is False:
         st.error("ユーザー名またはパスワードが違います。")
         st.stop()
@@ -76,11 +74,11 @@ name, auth_status, username = authenticator.login(
     st.session_state["username"] = username
     st.session_state["role"] = user["role"]
 
-    # Agency の場合は agency_id をセッションに格納（Secretsにあれば）
+    # Agency は自社IDをセッションへ（Secretsにあれば）
     if user["role"] == "Agency":
         st.session_state["selected_agency"] = user.get("agency_id", None)
 
-    # Sidebar にログアウト
+    # サイドバーにログアウト
     authenticator.logout("ログアウト", "sidebar")
     st.sidebar.markdown(f"**ログイン中:** {st.session_state['user_name']}（{st.session_state['role']}）")
 
@@ -94,9 +92,8 @@ def require_auth(roles=None):
         st.error("このページへのアクセス権限がありません。")
         st.stop()
 
-
 # -----------------------------------------------------------------------------
-# ユーティリティ
+# データユーティリティ
 # -----------------------------------------------------------------------------
 @st.cache_data
 def load_df(path: str) -> pd.DataFrame:
@@ -122,7 +119,6 @@ def mask_company(name: str) -> str:
         return "非公開"
     return name[0] + "＊" * (len(name) - 2) + name[-1]
 
-
 # -----------------------------------------------------------------------------
 # セッション初期化
 # -----------------------------------------------------------------------------
@@ -138,17 +134,17 @@ if "selected_agency" not in st.session_state:
 ensure_connections_file()
 
 # -----------------------------------------------------------------------------
-# 認証（ここで止める／通れば先へ）
+# 認証（ここでログイン必須）
 # -----------------------------------------------------------------------------
 do_auth()
-role = st.session_state.get("role", "Agency")  # 以降の表示分岐に利用
+role = st.session_state.get("role", "Agency")  # 以降の表示分岐で使用
 
 # -----------------------------------------------------------------------------
-# サイドバー（料金表示／Agencyの会社固定 or 選択）
+# サイドバー（料金表示／Agency の会社選択フォールバック）
 # -----------------------------------------------------------------------------
 st.sidebar.title("Dispatch Gate (β)")
 
-# Agency で agency_id が Secrets に無い場合のみ、選択UIを表示
+# Agency で Secrets に agency_id が無い場合のみ、選択UIを表示
 if role == "Agency" and not st.session_state.get("selected_agency"):
     try:
         agy_df = load_df(AGY_CSV)
