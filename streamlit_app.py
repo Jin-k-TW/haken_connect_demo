@@ -49,14 +49,19 @@ def do_auth():
         cookie_expiry_days=int(cookie_conf["expiry_days"]),
     )
 
-    # v0.4.1 仕様：最初の位置引数がフォーム名、次が location
+    # ---- v0.4.1 仕様 + location安全パッチ（不可視文字/大文字混入対策）----
+    FORM_NAME = "ログイン"
+    LOC = "sidebar"
+    LOC = LOC.strip().lower()  # 'main' / 'sidebar' / 'unrendered' 以外は弾かれる
+
+    # 位置引数の順序：(form_name, location) を厳守
     name, auth_status, username = authenticator.login(
-        "ログイン",       # ← フォーム名（必須）
-        "sidebar",        # ← 表示場所：'main' / 'sidebar' / 'unrendered'
+        FORM_NAME,
+        LOC,
         fields={
             "Username": "ユーザー名",
             "Password": "パスワード",
-            "Submit": "ログイン",
+            "Submit":   "ログイン",
         },
     )
 
