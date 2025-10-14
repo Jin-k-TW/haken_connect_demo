@@ -52,8 +52,16 @@ def do_auth():
         cookie_expiry_days=int(cookie_conf["expiry_days"]),
     )
 
-    # メインカラムにログインフォーム
-    name, auth_status, username = authenticator.login("ログイン", "sidebar")
+  # メインカラムにログインフォーム
+name, auth_status, username = authenticator.login(
+    location="sidebar",
+    fields={
+        "Form name": "ログイン",
+        "Username": "ユーザー名",
+        "Password": "パスワード",
+        "Submit": "ログイン"
+    },
+)
 
     if auth_status is False:
         st.error("ユーザー名またはパスワードが違います。")
