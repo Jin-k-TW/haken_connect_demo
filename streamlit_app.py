@@ -1,4 +1,4 @@
-# streamlit_app.py — Haken Connect / Light Blue Theme + Mascot (inline SVG)
+# streamlit_app.py — Haken Connect / Light Blue Theme + Crisp Mascot (Top-Right)
 import os
 import base64
 from datetime import datetime
@@ -102,29 +102,45 @@ body {{
   border-right: 1px solid #e9eef5;
 }}
 
-/* Mascot (fixed bottom-right) */
-.hc-mascot {{
+/* ---- Mascot (crisp inline SVG, TOP-RIGHT) ---- */
+.hc-mascot-wrap{{
   position: fixed;
-  right: 18px; bottom: 18px;
-  width: clamp(90px, 14vw, 140px);
+  top: 14px;
+  right: 18px;
+  width: clamp(110px, 15vw, 180px);  /* サイズ調整 */
   z-index: 9999;
-  user-select: none; pointer-events: none;
+  user-select: none;
+  pointer-events: none;               /* クリック無効（邪魔しない） */
+  filter: drop-shadow(0 8px 22px rgba(30,144,255,.35)); /* 影はCSSで */
   animation: hc-float 4s ease-in-out infinite;
-  filter: drop-shadow(0 6px 18px rgba(30, 144, 255, 0.35));
 }}
-@keyframes hc-float {{
-  0% {{ transform: translateY(0) }}
+.hc-mascot-wrap svg{{
+  width: 100%;
+  height: auto;
+  display: block;
+  shape-rendering: geometricPrecision; /* くっきり */
+  text-rendering: geometricPrecision;
+  image-rendering: optimizeQuality;
+}}
+@keyframes hc-float{{
+  0%{{ transform: translateY(0) }}
   50%{{ transform: translateY(-6px) }}
   100%{{ transform: translateY(0) }}
 }}
-.hc-mascot-tip {{
-  position: fixed; right: 20px;
-  bottom: calc(18px + clamp(90px, 14vw, 140px) + 8px);
-  background: #ffffff; border: 1px solid #e6f3ff;
-  padding: 6px 10px; border-radius: 10px; color:#0f172a; font-size: 12px;
+/* 任意のヒント吹き出し（右上マスコットの少し下） */
+.hc-mascot-tip{{
+  position: fixed;
+  top: calc(14px + clamp(110px, 15vw, 180px) + 8px);
+  right: 22px;
+  background: #fff;
+  border: 1px solid #e6f3ff;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #0f172a;
   box-shadow: 0 8px 18px rgba(94,194,254,.18);
 }}
-.hc-mascot-tip b {{ color: #1377c8; }}
+.hc-mascot-tip b{{ color:#1377c8; }}
 </style>
 """,
     unsafe_allow_html=True,
@@ -160,72 +176,61 @@ def mosaic_html(text: str) -> str:
     safe = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return f'<span class="company blurred">{safe}</span>'
 
-# ===== Mascot (inline SVG) ====================================================
+# ===== Mascot (inline SVG, crisp) ============================================
 def get_mascot_svg(fill="#5EC2FE") -> str:
     """
-    青い二足歩行の犬 + 虫眼鏡（背景透過のSVG）。
-    チーバくん系の丸み/親しみやすさ、探索のニュアンス。
+    青ベースの二足歩行の犬 + 虫眼鏡（完全ベクター / 透過）。
+    影はCSSで付与するのでSVG内フィルタは未使用＝拡大縮小でもくっきり。
     """
     return f"""
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none"
-     xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"
+     aria-label="Haken Connect Mascot" role="img">
   <!-- Body -->
-  <g filter="url(#shadow)">
-    <path d="M170 180c0-46 36-84 82-84s82 38 82 84v18c28 10 44 34 44 61 0 38-35 68-90 68h-72c-55 0-90-30-90-68 0-29 18-54 48-62v-17z"
-          fill="{fill}"/>
-    <!-- Belly -->
-    <ellipse cx="252" cy="274" rx="66" ry="56" fill="white" fill-opacity="0.85"/>
-    <!-- Muzzle -->
-    <ellipse cx="252" cy="206" rx="34" ry="24" fill="white"/>
-    <!-- Nose -->
-    <circle cx="268" cy="206" r="5" fill="#0f172a"/>
-    <!-- Eyes -->
-    <circle cx="230" cy="186" r="6" fill="#0f172a"/>
-    <circle cx="286" cy="186" r="6" fill="#0f172a"/>
-    <!-- Smile -->
-    <path d="M238 212c8 8 20 8 28 0" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
-    <!-- Ears -->
-    <path d="M198 138c-12-10-30-12-44-4 6 18 23 28 40 26l4-22z" fill="{fill}"/>
-    <path d="M306 138c12-10 30-12 44-4-6 18-23 28-40 26l-4-22z" fill="{fill}"/>
-    <!-- Legs -->
-    <path d="M206 354c-2 22-8 44-18 64-6 12 12 20 21 10 10-13 19-28 25-44l-28-30z" fill="{fill}"/>
-    <path d="M298 354c2 22 8 44 18 64 6 12-12 20-21 10-10-13-19-28-25-44l28-30z" fill="{fill}"/>
-    <!-- Arms -->
-    <path d="M166 258c-18 10-32 22-42 36-6 8 4 19 13 14 13-8 29-14 46-18l-17-32z" fill="{fill}"/>
-    <path d="M338 258c18 10 32 22 42 36 6 8-4 19-13 14-13-8-29-14-46-18l17-32z" fill="{fill}"/>
-  </g>
+  <path d="M170 180c0-46 36-84 82-84s82 38 82 84v18c28 10 44 34 44 61
+           0 38-35 68-90 68h-72c-55 0-90-30-90-68 0-29 18-54 48-62v-17z"
+        fill="{fill}"/>
+  <!-- Belly -->
+  <ellipse cx="252" cy="274" rx="66" ry="56" fill="#fff" fill-opacity=".92"/>
+  <!-- Muzzle -->
+  <ellipse cx="252" cy="206" rx="34" ry="24" fill="#fff"/>
+  <!-- Nose & Eyes -->
+  <circle cx="268" cy="206" r="5" fill="#0f172a"/>
+  <circle cx="230" cy="186" r="6" fill="#0f172a"/>
+  <circle cx="286" cy="186" r="6" fill="#0f172a"/>
+  <path d="M238 212c8 8 20 8 28 0" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Ears -->
+  <path d="M198 138c-12-10-30-12-44-4 6 18 23 28 40 26l4-22z" fill="{fill}"/>
+  <path d="M306 138c12-10 30-12 44-4-6 18-23 28-40 26l-4-22z" fill="{fill}"/>
+
+  <!-- Arms & Legs -->
+  <path d="M166 258c-18 10-32 22-42 36 13-8 29-14 46-18l-4-8z" fill="{fill}"/>
+  <path d="M338 258c18 10 32 22 42 36-13-8-29-14-46-18l4-8z" fill="{fill}"/>
+  <path d="M206 354c-2 22-8 44-18 64 10-12 19-27 25-43l-7-21z" fill="{fill}"/>
+  <path d="M298 354c2 22 8 44 18 64-10-12-19-27-25-43l7-21z" fill="{fill}"/>
 
   <!-- Magnifying glass (right hand) -->
   <g transform="translate(332,236) rotate(20)">
-    <circle cx="44" cy="44" r="36" fill="#ffffff" stroke="#0f172a" stroke-width="6"/>
-    <circle cx="44" cy="44" r="18" fill="{fill}" fill-opacity="0.35"/>
+    <circle cx="44" cy="44" r="36" fill="#fff" stroke="#0f172a" stroke-width="6"/>
+    <circle cx="44" cy="44" r="18" fill="{fill}" fill-opacity=".35"/>
     <rect x="38" y="76" width="12" height="34" rx="6" fill="#0f172a"/>
   </g>
 
   <!-- Friendly cheek -->
-  <circle cx="214" cy="196" r="7" fill="#FDB4C8" fill-opacity="0.85"/>
+  <circle cx="214" cy="196" r="7" fill="#FDB4C8" fill-opacity=".9"/>
 
-  <!-- Soft shadow -->
-  <defs>
-    <filter id="shadow" x="0" y="0" width="512" height="512" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-opacity="0.18"/>
-    </filter>
-  </defs>
+  <!-- Line accents -->
+  <path d="M170 198v-18" stroke="{fill}" stroke-width="6" stroke-linecap="round"/>
+  <path d="M334 198v-18" stroke="{fill}" stroke-width="6" stroke-linecap="round"/>
 </svg>
 """.strip()
 
-def inject_mascot(show_tip: bool = True):
-    svg = get_mascot_svg(BRAND_COLOR)
-    b64 = base64.b64encode(svg.encode("utf-8")).decode()
-    st.markdown(
-        f'<img class="hc-mascot" alt="mascot" src="data:image/svg+xml;base64,{b64}"/>',
-        unsafe_allow_html=True,
-    )
+def inject_mascot(show_tip: bool = True, color: str = BRAND_COLOR, size_css: str = None):
+    svg = get_mascot_svg(color)
+    wrap_style = f'style="{size_css}"' if size_css else ""
+    st.markdown(f'<div class="hc-mascot-wrap" {wrap_style}>{svg}</div>', unsafe_allow_html=True)
     if show_tip:
-        st.markdown(
-            f'<div class="hc-mascot-tip">🔎 <b>{BRAND_NAME}</b> で発見！</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown(f'<div class="hc-mascot-tip">🔎 <b>{BRAND_NAME}</b> で発見！</div>', unsafe_allow_html=True)
 
 # =============================================================================
 # Session init
@@ -291,7 +296,7 @@ def hero_svg():
 """
 st.markdown(hero_svg(), unsafe_allow_html=True)
 
-# マスコットを右下に出現
+# マスコットを右上に出現（ヒーローより上に重なる）
 inject_mascot(show_tip=True)
 
 # =============================================================================
