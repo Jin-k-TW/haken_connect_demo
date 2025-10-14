@@ -53,7 +53,7 @@ def do_auth():
     )
 
     # メインカラムにログインフォーム
-    name, auth_status, username = authenticator.login("ログイン", "main")
+    name, auth_status, username = authenticator.login("ログイン", "sidebar")
 
     if auth_status is False:
         st.error("ユーザー名またはパスワードが違います。")
