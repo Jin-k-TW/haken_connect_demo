@@ -49,11 +49,11 @@ def do_auth():
         cookie_expiry_days=int(cookie_conf["expiry_days"]),
     )
 
-    # サイドバーにログインフォーム（v0.4.1 仕様）
+    # v0.4.1 仕様：最初の位置引数がフォーム名、次が location
     name, auth_status, username = authenticator.login(
-        location="sidebar",
+        "ログイン",       # ← フォーム名（必須）
+        "sidebar",        # ← 表示場所：'main' / 'sidebar' / 'unrendered'
         fields={
-            "Form name": "ログイン",
             "Username": "ユーザー名",
             "Password": "パスワード",
             "Submit": "ログイン",
