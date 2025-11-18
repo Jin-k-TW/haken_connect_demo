@@ -1,4 +1,12 @@
 import os
+from data.init_db import init_db
+from data.insert_sample_data import insert_sample_data
+
+if not os.path.exists("data/haken_connect.db"):
+    init_db()
+    insert_sample_data()
+
+import os
 import sqlite3
 from datetime import datetime
 
