@@ -1,6 +1,5 @@
-# streamlit_app.py — Haken Connect / Light Blue Theme + Crisp Mascot (Top-Right)
 import os
-import base64
+import sqlite3
 from datetime import datetime
 
 import pandas as pd
@@ -28,16 +27,13 @@ st.markdown(
   --brand-dark: {BRAND_COLOR_DARK};
   --muted: {MUTED};
 }}
-/* App padding */
 .main .block-container {{
   padding-top: 0.8rem;
   padding-bottom: 3rem;
 }}
-/* Subtle brand background */
 body {{
   background: linear-gradient(180deg, rgba(94,194,254,0.10), rgba(94,194,254,0.02));
 }}
-/* Brand hero */
 .brand-hero {{
   position: relative;
   padding: 20px 24px 16px 24px;
@@ -62,8 +58,6 @@ body {{
 .brand-sub {{ color:#334155; font-size:13px; margin-left:2px; }}
 .brand-wave {{ position:absolute; inset:auto 0 0 0; height:52px; overflow:hidden; }}
 .brand-wave svg {{ display:block; width:100%; height:100%; }}
-
-/* Cards */
 .card {{padding:14px 16px; border:1px solid #e9ecef; border-radius:14px; margin-bottom:12px; background:#fff;}}
 .rank {{font-size:44px; font-weight:800; letter-spacing:1px; line-height:1; margin:2px 0 8px 0; color:#0f172a;}}
 .fee {{font-size:12px; color:var(--muted); margin-top:2px;}}
@@ -78,8 +72,6 @@ body {{
   display:inline-block; padding:2px 10px; font-size:12px; border-radius:999px;
   background: {ACCENT_BG}; color:#0f172a; border:1px solid rgba(94,194,254,0.28);
 }}
-
-/* Tabs & Buttons */
 .stTabs [role="tablist"] button[role="tab"] {{
   border-radius: 10px 10px 0 0 !important;
   background: #ffffffaa;
@@ -95,30 +87,26 @@ body {{
   box-shadow: 0 6px 16px rgba(94,194,254,0.35);
 }}
 .stButton>button:hover {{ background: var(--brand-dark); border-color: var(--brand-dark); }}
-
-/* Sidebar */
 .sidebar .sidebar-content, section[data-testid="stSidebar"]>div {{
   background: linear-gradient(180deg, #ffffff, #f9fcff);
   border-right: 1px solid #e9eef5;
 }}
-
-/* ---- Mascot (crisp inline SVG, TOP-RIGHT) ---- */
 .hc-mascot-wrap{{
   position: fixed;
   top: 14px;
   right: 18px;
-  width: clamp(110px, 15vw, 180px);  /* サイズ調整 */
+  width: clamp(110px, 15vw, 180px);
   z-index: 9999;
   user-select: none;
-  pointer-events: none;               /* クリック無効（邪魔しない） */
-  filter: drop-shadow(0 8px 22px rgba(30,144,255,.35)); /* 影はCSSで */
+  pointer-events: none;
+  filter: drop-shadow(0 8px 22px rgba(30,144,255,.35));
   animation: hc-float 4s ease-in-out infinite;
 }}
 .hc-mascot-wrap svg{{
   width: 100%;
   height: auto;
   display: block;
-  shape-rendering: geometricPrecision; /* くっきり */
+  shape-rendering: geometricPrecision;
   text-rendering: geometricPrecision;
   image-rendering: optimizeQuality;
 }}
@@ -127,7 +115,6 @@ body {{
   50%{{ transform: translateY(-6px) }}
   100%{{ transform: translateY(0) }}
 }}
-/* 任意のヒント吹き出し（右上マスコットの少し下） */
 .hc-mascot-tip{{
   position: fixed;
   top: calc(14px + clamp(110px, 15vw, 180px) + 8px);
@@ -147,41 +134,36 @@ body {{
 )
 
 # =============================================================================
-# Data paths
+# Data paths & DB
 # =============================================================================
 DATA_DIR = "data"
-OPP_CSV = os.path.join(DATA_DIR, "opportunities.csv")
-COM_CSV = os.path.join(DATA_DIR, "companies.csv")
-AGY_CSV = os.path.join(DATA_DIR, "agencies.csv")
-CON_CSV = os.path.join(DATA_DIR, "connections.csv")
+DB_PATH = os.path.join(DATA_DIR, "haken_connect.db")
+
+def get_conn():
+    return sqlite3.connect(DB_PATH)
 
 # =============================================================================
 # Utils
 # =============================================================================
-@st.cache_data
-def load_df(path: str) -> pd.DataFrame:
-    return pd.read_csv(path)
+def load_df(table: str) -> pd.DataFrame:
+    with get_conn() as conn:
+        return pd.read_sql_query(f"SELECT * FROM {table}", conn)
 
-def ensure_connections_file():
-    if not os.path.exists(CON_CSV):
-        pd.DataFrame(
-            columns=[
-                "connection_id","timestamp","agency_id","opportunity_id",
-                "status","fee_amount","incentive_amount","notes"
-            ]
-        ).to_csv(CON_CSV, index=False)
+def insert_connection(row: dict):
+    with get_conn() as conn:
+        columns = ",".join(row.keys())
+        placeholders = ",".join(["?"] * len(row))
+        values = list(row.values())
+        conn.execute(
+            f"INSERT INTO connections ({columns}) VALUES ({placeholders})", values
+        )
+        conn.commit()
 
 def mosaic_html(text: str) -> str:
-    """HTML/CSSぼかし（ユーザー選択不可で視認防止）"""
     safe = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     return f'<span class="company blurred">{safe}</span>'
 
-# ===== Mascot (inline SVG, crisp) ============================================
 def get_mascot_svg(fill="#5EC2FE") -> str:
-    """
-    青ベースの二足歩行の犬 + 虫眼鏡（完全ベクター / 透過）。
-    影はCSSで付与するのでSVG内フィルタは未使用＝拡大縮小でもくっきり。
-    """
     return f"""
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"
      aria-label="Haken Connect Mascot" role="img">
@@ -198,27 +180,22 @@ def get_mascot_svg(fill="#5EC2FE") -> str:
   <circle cx="230" cy="186" r="6" fill="#0f172a"/>
   <circle cx="286" cy="186" r="6" fill="#0f172a"/>
   <path d="M238 212c8 8 20 8 28 0" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
-
   <!-- Ears -->
   <path d="M198 138c-12-10-30-12-44-4 6 18 23 28 40 26l4-22z" fill="{fill}"/>
   <path d="M306 138c12-10 30-12 44-4-6 18-23 28-40 26l-4-22z" fill="{fill}"/>
-
   <!-- Arms & Legs -->
   <path d="M166 258c-18 10-32 22-42 36 13-8 29-14 46-18l-4-8z" fill="{fill}"/>
   <path d="M338 258c18 10 32 22 42 36-13-8-29-14-46-18l4-8z" fill="{fill}"/>
   <path d="M206 354c-2 22-8 44-18 64 10-12 19-27 25-43l-7-21z" fill="{fill}"/>
   <path d="M298 354c2 22 8 44 18 64-10-12-19-27-25-43l7-21z" fill="{fill}"/>
-
   <!-- Magnifying glass (right hand) -->
   <g transform="translate(332,236) rotate(20)">
     <circle cx="44" cy="44" r="36" fill="#fff" stroke="#0f172a" stroke-width="6"/>
     <circle cx="44" cy="44" r="18" fill="{fill}" fill-opacity=".35"/>
     <rect x="38" y="76" width="12" height="34" rx="6" fill="#0f172a"/>
   </g>
-
   <!-- Friendly cheek -->
   <circle cx="214" cy="196" r="7" fill="#FDB4C8" fill-opacity=".9"/>
-
   <!-- Line accents -->
   <path d="M170 198v-18" stroke="{fill}" stroke-width="6" stroke-linecap="round"/>
   <path d="M334 198v-18" stroke="{fill}" stroke-width="6" stroke-linecap="round"/>
@@ -246,25 +223,20 @@ if "role" not in st.session_state:
 if "selected_agency" not in st.session_state:
     st.session_state["selected_agency"] = None
 
-ensure_connections_file()
-
 # =============================================================================
 # Sidebar
 # =============================================================================
 st.sidebar.title(BRAND_NAME)
 role = st.sidebar.selectbox("ロール", ["Admin", "Agency"], index=0, key="role")
 
-if role == "Agency":
-    try:
-        agy_df = load_df(AGY_CSV)
-        agy_name = st.sidebar.selectbox("派遣会社を選択", agy_df["agency_name"].tolist())
-        st.session_state["selected_agency"] = agy_df.loc[
-            agy_df["agency_name"] == agy_name, "agency_id"
-        ].iloc[0]
-    except Exception:
-        st.sidebar.warning("派遣会社マスタ（data/agencies.csv）を確認してください。")
-else:
-    st.session_state["selected_agency"] = None
+try:
+    agy_df = load_df("agencies")
+    agy_name = st.sidebar.selectbox("派遣会社を選択", agy_df["agency_name"].tolist())
+    st.session_state["selected_agency"] = agy_df.loc[
+        agy_df["agency_name"] == agy_name, "agency_id"
+    ].iloc[0]
+except Exception:
+    st.sidebar.warning("派遣会社マスタ（agenciesテーブル）を確認してください。")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**料金設定（参考）**")
@@ -296,7 +268,6 @@ def hero_svg():
 """
 st.markdown(hero_svg(), unsafe_allow_html=True)
 
-# マスコットを右上に出現（ヒーローより上に重なる）
 inject_mascot(show_tip=True)
 
 # =============================================================================
@@ -308,8 +279,8 @@ tab1, tab2, tab3 = st.tabs(["案件カタログ", "ダッシュボード", "ヘ�
 
 # ==== Catalog ================================================================
 with tab1:
-    opp_df = load_df(OPP_CSV)
-    com_df = load_df(COM_CSV)
+    opp_df = load_df("opportunities")
+    com_df = load_df("companies")
     merged = opp_df.merge(com_df, on="company_id", how="left")
 
     col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 2])
@@ -386,8 +357,7 @@ with tab1:
                 st.markdown('<div class="right-actions">', unsafe_allow_html=True)
                 if role == "Agency":
                     if st.button("アプローチ ▶︎", key=f"approach_{row['opportunity_id']}"):
-                        con_df = pd.read_csv(CON_CSV)
-                        new = pd.DataFrame([{
+                        new = {
                             "connection_id": f"CN_{int(pd.Timestamp.utcnow().timestamp())}_{row['opportunity_id']}",
                             "timestamp": datetime.utcnow().isoformat(),
                             "agency_id": st.session_state.get("selected_agency"),
@@ -396,9 +366,8 @@ with tab1:
                             "fee_amount": fee,
                             "incentive_amount": None,
                             "notes": "",
-                        }])
-                        con_df = pd.concat([con_df, new], ignore_index=True)
-                        con_df.to_csv(CON_CSV, index=False)
+                        }
+                        insert_connection(new)
                         st.success("アプローチを送信しました。社内で確認後、企業にご連絡します。")
                 else:
                     st.caption("（Admin表示）企業奨励金は社内管理でのみ扱います。")
@@ -410,8 +379,8 @@ with tab1:
 # ==== Dashboard ==============================================================
 with tab2:
     st.subheader("ダッシュボード（サマリー）")
-    opp_df = load_df(OPP_CSV)
-    con_df = pd.read_csv(CON_CSV)
+    opp_df = load_df("opportunities")
+    con_df = load_df("connections")
 
     need_counts = opp_df["need_level"].value_counts().reindex(["A","B","C"]).fillna(0).astype(int)
     c1, c2, c3, c4 = st.columns(4)
